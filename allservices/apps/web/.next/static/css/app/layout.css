@@ -1,0 +1,175 @@
+/*!*************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ../../node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[12].use[2]!../../node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[12].use[3]!./src/app/globals.css ***!
+  \*************************************************************************************************************************************************************************************************************************************************************************/
+:root{
+  --bg: #F4F5F7;
+  --surface: #FFFFFF;
+  --surface-2: #FAFBFC;
+  --text: #172B4D;
+  --muted: #6B778C;
+  --border: #DFE1E6;
+
+  --primary: #0052CC;
+  --primary-2: #0747A6;
+
+  --success: #36B37E;
+  --danger: #DE350B;
+  --warning: #FFAB00;
+
+  --shadow: 0 1px 1px rgba(9,30,66,0.08), 0 0 1px rgba(9,30,66,0.31);
+  --radius: 12px;
+  --radius-sm: 10px;
+  --ring: 0 0 0 3px rgba(0,82,204,0.18);
+
+  --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+html, body{
+  height: 100%;
+}
+
+body{
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+/* Layout helpers */
+.container{
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+.card{
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.cardPad{
+  padding: 18px;
+}
+
+.h1{
+  font-size: 34px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  margin: 6px 0 10px;
+}
+
+.pMuted{
+  color: var(--muted);
+  margin: 0 0 16px;
+}
+
+/* Inputs + selects */
+input, select, textarea{
+  font-family: inherit;
+}
+
+input[type="text"], input[type="date"], input[type="email"], input[type="password"], select, textarea{
+  width: 100%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 12px;
+  outline: none;
+}
+
+input:focus, select:focus, textarea:focus{
+  border-color: rgba(0,82,204,0.6);
+  box-shadow: var(--ring);
+}
+
+label{
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+/* Buttons */
+button{
+  font-family: inherit;
+}
+
+.btn{
+  -webkit-appearance: none;
+     -moz-appearance: none;
+          appearance: none;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.btnPrimary{
+  background: var(--primary);
+  color: white;
+}
+
+.btnPrimary:hover{ background: var(--primary-2); }
+
+.btnSubtle{
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.btnSubtle:hover{ filter: brightness(0.98); }
+
+hr{
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+/* Top nav (si tu as un header) */
+.topbar{
+  position: -webkit-sticky;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(244,245,247,0.9);
+  -webkit-backdrop-filter: blur(10px);
+          backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbarInner{
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand{
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.navLinks{
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.navLinks a{
+  text-decoration: none;
+  color: var(--text);
+  font-weight: 600;
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+
+.navLinks a:hover{
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+

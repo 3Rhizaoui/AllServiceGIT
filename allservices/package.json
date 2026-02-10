@@ -1,0 +1,11 @@
+{
+  "name": "allservices",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run -w apps/api start:dev & npm run -w apps/web dev"
+  }
+}

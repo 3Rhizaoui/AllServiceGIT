@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: artisanbnb-postgres
+    environment:
+      POSTGRES_DB: artisanbnb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "55433:5432"
+    volumes:
+      - ./infra/postgres/data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d artisanbnb"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:55432/artisanbnb
+      JWT_SECRET: change_me
+      STRIPE_SECRET_KEY: ""
+      STRIPE_WEBHOOK_SECRET: ""
+    ports:
+      - "4000:4000"
+    depends_on:
+      - postgres

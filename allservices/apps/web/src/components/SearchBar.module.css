@@ -1,0 +1,12 @@
+.form{
+  border:1px solid var(--border);
+  background: var(--card);
+  padding:16px;
+  border-radius:16px;
+}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:end;}
+.label{display:flex;flex-direction:column;gap:6px;font-size:14px;color:var(--muted);}
+.label input, .label select{min-width:180px;padding:10px 12px;border:1px solid var(--border);border-radius:12px;font-size:16px;color:var(--text);background:white;}
+.btn{padding:10px 16px;border-radius:12px;border:1px solid var(--primary);background:var(--primary);color:white;font-weight:700;cursor:pointer;}
+.btn:hover{opacity:0.92;}
+.hint{margin:10px 0 0;color:var(--muted);font-size:13px;}

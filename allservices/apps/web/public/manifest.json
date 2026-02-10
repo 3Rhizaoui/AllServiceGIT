@@ -1,0 +1,16 @@
+{
+  "name": "AllServices",
+  "short_name": "AllServices",
+  "description": "Trouvez un service et reservez un professionnel pres de chez vous.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F4F5F7",
+  "theme_color": "#0052CC",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

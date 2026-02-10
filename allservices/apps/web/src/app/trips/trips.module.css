@@ -1,0 +1,54 @@
+.wrap {
+  padding: 24px;
+  display: grid;
+  place-items: center;
+}
+
+.card {
+  width: min(900px, 100%);
+  background: #fff;
+  border: 1px solid #eee;
+  border-radius: 18px;
+  padding: 18px;
+}
+
+.error {
+  color: #b00020;
+}
+
+.list {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.item {
+  border: 1px solid #eee;
+  border-radius: 16px;
+  padding: 12px;
+}
+
+.top {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.status {
+  margin-left: auto;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #ddd;
+  background: #fafafa;
+}
+
+.sub {
+  color: #555;
+  margin-top: 6px;
+}
+
+.actions {
+  margin-top: 8px;
+}
