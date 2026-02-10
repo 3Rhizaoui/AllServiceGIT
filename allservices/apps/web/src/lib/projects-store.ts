@@ -3,16 +3,23 @@
 /**
  * V1 store “sans backend”
  * - Stockage localStorage
- * - Projets (appel d’offre) + offres des pros
- * - Compatible avec les pages user + pro (imports stables)
+ * - Projets (appel d’offre) + offres
+ * - Données privées côté utilisateur via ownerEmail
+ *
+ * IMPORTANT:
+ * - NE SEED PAS automatiquement (sinon un nouvel utilisateur voit déjà des projets)
+ * - Le listing pro voit tous les projets open (logique appel d’offre)
  */
 
 export type ProjectCategory =
-  | 'renovation'
   | 'plomberie'
   | 'electricite'
   | 'peinture'
+  | 'carrelage'
   | 'menuiserie'
+  | 'maconnerie'
+  | 'climatisation'
+  | 'renovation'
   | 'jardin'
   | 'autre';
 
@@ -25,7 +32,7 @@ export type ProjectOffer = {
   priceEur: number;
   durationDays: number;
   message?: string;
-  createdAt: number; // timestamp ms
+  createdAt: number;
 };
 
 export type Project = {
@@ -35,11 +42,17 @@ export type Project = {
   category: ProjectCategory;
   description: string;
   city?: string;
-  createdAt: number; // timestamp ms
+  createdAt: number;
   status: ProjectStatus;
 
+  // si assigné
   assignedProEmail?: string;
   acceptedOfferId?: string;
+
+  // IA V1 (front only)
+  scope?: string[];
+  questions?: string[];
+  suggestedMaterials?: string[];
 
   offers: ProjectOffer[];
 };
@@ -63,44 +76,10 @@ function safeJsonParse<T>(raw: string | null, fallback: T): T {
   }
 }
 
-function toNumber(v: any, fallback: number) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
-}
-
-function normalizeOffer(o: any): ProjectOffer {
-  return {
-    id: String(o?.id || uid('offer')),
-    projectId: String(o?.projectId || ''),
-    proEmail: String(o?.proEmail || '').toLowerCase(),
-    priceEur: toNumber(o?.priceEur, 0),
-    durationDays: toNumber(o?.durationDays, 0),
-    message: o?.message ? String(o.message) : undefined,
-    createdAt: toNumber(o?.createdAt, now()),
-  };
-}
-
-function normalizeProject(p: any): Project {
-  return {
-    id: String(p?.id || uid('proj')),
-    ownerEmail: String(p?.ownerEmail || '').toLowerCase(),
-    title: String(p?.title || ''),
-    category: (p?.category as ProjectCategory) || 'autre',
-    description: String(p?.description || ''),
-    city: p?.city ? String(p.city) : undefined,
-    createdAt: toNumber(p?.createdAt, now()),
-    status: (p?.status as ProjectStatus) || 'open',
-    assignedProEmail: p?.assignedProEmail ? String(p.assignedProEmail).toLowerCase() : undefined,
-    acceptedOfferId: p?.acceptedOfferId ? String(p.acceptedOfferId) : undefined,
-    offers: Array.isArray(p?.offers) ? p.offers.map(normalizeOffer) : [],
-  };
-}
-
 function loadAll(): Project[] {
   if (typeof window === 'undefined') return [];
-  const data = safeJsonParse<any[]>(localStorage.getItem(LS_KEY), []);
-  if (!Array.isArray(data)) return [];
-  return data.map(normalizeProject);
+  const data = safeJsonParse<Project[]>(localStorage.getItem(LS_KEY), []);
+  return Array.isArray(data) ? data : [];
 }
 
 function saveAll(projects: Project[]) {
@@ -111,18 +90,25 @@ function saveAll(projects: Project[]) {
 // ---------- Helpers UI ----------
 export function labelCategory(cat: ProjectCategory) {
   switch (cat) {
-    case 'renovation':
-      return 'Rénovation';
     case 'plomberie':
       return 'Plomberie';
     case 'electricite':
       return 'Électricité';
     case 'peinture':
       return 'Peinture';
+    case 'carrelage':
+      return 'Carrelage';
     case 'menuiserie':
       return 'Menuiserie';
+    case 'maconnerie':
+      return 'Maçonnerie';
+    case 'climatisation':
+      return 'Climatisation';
+    case 'renovation':
+      return 'Rénovation';
     case 'jardin':
       return 'Jardin';
+    case 'autre':
     default:
       return 'Autre';
   }
@@ -136,47 +122,14 @@ export function formatEuro(value: number) {
   }
 }
 
+// ---------- Seed (OPTIONNEL) ----------
 /**
- * IMPORTANT (privacy) :
- * - PAS de seed automatique.
- * Si tu veux un seed pour démo, appelle cette fonction MANUELLEMENT
- * depuis une page de dev, et seulement pour l'email concerné.
+ * ⚠️ N’est plus appelée automatiquement.
+ * Garde-la seulement pour du dev si tu veux.
  */
-export function debugSeedForEmail(ownerEmailForSamples: string) {
-  const email = ownerEmailForSamples.trim().toLowerCase();
-  if (!email) return;
-
-  const all = loadAll();
-  const alreadyHas = all.some((p) => p.ownerEmail === email);
-  if (alreadyHas) return;
-
-  const sample: Project[] = [
-    {
-      id: uid('proj'),
-      ownerEmail: email,
-      title: 'Pose de parquet (salon 20m²)',
-      category: 'renovation',
-      description:
-        'Je souhaite poser un parquet stratifié dans un salon. Le sol est plat. Merci de proposer un prix + durée.',
-      city: 'Massy',
-      createdAt: now() - 1000 * 60 * 60 * 24 * 2,
-      status: 'open',
-      offers: [],
-    },
-    {
-      id: uid('proj'),
-      ownerEmail: email,
-      title: 'Remplacement robinet cuisine',
-      category: 'plomberie',
-      description: 'Robinet qui fuit. Remplacement + vérification étanchéité.',
-      city: 'Paris',
-      createdAt: now() - 1000 * 60 * 60 * 24,
-      status: 'open',
-      offers: [],
-    },
-  ];
-
-  saveAll([...sample, ...all]);
+export function seedProjectsIfEmpty(_ownerEmailForSamples = 'testuser@gmail.com') {
+  // volontairement vide : pas de seed automatique
+  return;
 }
 
 // ---------- CRUD ----------
@@ -186,17 +139,14 @@ export function createProject(input: {
   category: ProjectCategory;
   description: string;
   city?: string;
+  scope?: string[];
+  questions?: string[];
+  suggestedMaterials?: string[];
 }): Project {
-  const ownerEmail = input.ownerEmail.trim().toLowerCase();
-  if (!ownerEmail) throw new Error('Owner email requis.');
-  if (!input.title.trim()) throw new Error('Titre requis.');
-  if (!input.description.trim()) throw new Error('Description requise.');
-
   const projects = loadAll();
-
   const p: Project = {
     id: uid('proj'),
-    ownerEmail,
+    ownerEmail: (input.ownerEmail || '').trim().toLowerCase(),
     title: input.title.trim(),
     category: input.category,
     description: input.description.trim(),
@@ -204,52 +154,46 @@ export function createProject(input: {
     createdAt: now(),
     status: 'open',
     offers: [],
+    scope: input.scope,
+    questions: input.questions,
+    suggestedMaterials: input.suggestedMaterials,
   };
-
   projects.unshift(p);
   saveAll(projects);
   return p;
 }
 
 export function listMyProjects(ownerEmail: string): Project[] {
-  const email = ownerEmail.trim().toLowerCase();
+  const e = (ownerEmail || '').trim().toLowerCase();
   const projects = loadAll();
   return projects
-    .filter((p) => p.ownerEmail === email)
+    .filter((p) => (p.ownerEmail || '').toLowerCase() === e)
     .sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export function listOpenProjects(filter?: { category?: ProjectCategory }): Project[] {
   const projects = loadAll();
   const open = projects.filter((p) => p.status === 'open');
-  const filtered = filter?.category ? open.filter((p) => p.category === filter.category) : open;
-  return filtered.sort((a, b) => b.createdAt - a.createdAt);
+  const out = filter?.category ? open.filter((p) => p.category === filter.category) : open;
+  return out.sort((a, b) => b.createdAt - a.createdAt);
 }
 
-// Alias attendu par tes pages
-export function getProject(id: string): Project | null {
-  return getProjectById(id);
+/**
+ * Pro: projets assignés au professionnel (après acceptation par le client).
+ * Permet au pro de retrouver l'appel d'offre accepté et d'accéder au chat.
+ */
+export function listAssignedProjectsForPro(proEmail: string): Project[] {
+  const clean = (proEmail || '').trim().toLowerCase();
+  if (!clean) return [];
+  const projects = loadAll();
+  return projects
+    .filter((p) => p.status === 'assigned' && (p.assignedProEmail || '').toLowerCase() === clean)
+    .sort((a, b) => b.createdAt - a.createdAt);
 }
+
 export function getProjectById(id: string): Project | null {
   const projects = loadAll();
   return projects.find((p) => p.id === id) ?? null;
-}
-
-// Alias attendu par tes pages
-export function listOffers(projectId: string): ProjectOffer[] {
-  const p = getProjectById(projectId);
-  return p?.offers ?? [];
-}
-
-// Alias attendu par tes pages (createOffer)
-export function createOffer(input: {
-  projectId: string;
-  proEmail: string;
-  priceEur: number;
-  durationDays: number;
-  message?: string;
-}): ProjectOffer {
-  return addOffer(input);
 }
 
 export function addOffer(input: {
@@ -264,15 +208,12 @@ export function addOffer(input: {
   if (!p) throw new Error('Projet introuvable.');
   if (p.status !== 'open') throw new Error("Ce projet n'accepte plus d'offres.");
 
-  const proEmail = input.proEmail.trim().toLowerCase();
-  if (!proEmail) throw new Error('Email pro requis.');
-
   const offer: ProjectOffer = {
     id: uid('offer'),
     projectId: input.projectId,
-    proEmail,
-    priceEur: toNumber(input.priceEur, 0),
-    durationDays: toNumber(input.durationDays, 0),
+    proEmail: (input.proEmail || '').trim().toLowerCase(),
+    priceEur: Number(input.priceEur),
+    durationDays: Number(input.durationDays),
     message: input.message?.trim() || undefined,
     createdAt: now(),
   };
@@ -282,30 +223,15 @@ export function addOffer(input: {
   return offer;
 }
 
-// Deux signatures supportées (pour éviter tes régressions)
-export function acceptOffer(projectId: string, offerId: string): void;
-export function acceptOffer(input: { projectId: string; offerId: string; ownerEmail: string }): void;
-export function acceptOffer(a: any, b?: any) {
-  if (typeof a === 'string') {
-    // acceptOffer(projectId, offerId)
-    const projectId = a;
-    const offerId = String(b || '');
-    return acceptOfferInternal({ projectId, offerId });
-  }
-  // acceptOffer({ projectId, offerId, ownerEmail })
-  return acceptOfferInternal(a);
-}
-
-function acceptOfferInternal(input: { projectId: string; offerId: string; ownerEmail?: string }) {
+export function acceptOffer(input: { projectId: string; offerId: string; ownerEmail: string }) {
   const projects = loadAll();
   const p = projects.find((x) => x.id === input.projectId);
   if (!p) throw new Error('Projet introuvable.');
-  if (p.status !== 'open') throw new Error('Projet déjà traité.');
 
-  if (input.ownerEmail) {
-    const owner = input.ownerEmail.trim().toLowerCase();
-    if (p.ownerEmail !== owner) throw new Error('Accès refusé.');
-  }
+  const owner = (p.ownerEmail || '').toLowerCase();
+  const caller = (input.ownerEmail || '').toLowerCase();
+  if (owner !== caller) throw new Error('Accès refusé.');
+  if (p.status !== 'open') throw new Error('Projet déjà traité.');
 
   const offer = p.offers.find((o) => o.id === input.offerId);
   if (!offer) throw new Error('Offre introuvable.');
@@ -318,8 +244,40 @@ function acceptOfferInternal(input: { projectId: string; offerId: string; ownerE
 }
 
 export function canChat(project: Project, userEmail: string) {
-  const e = userEmail.trim().toLowerCase();
-  const owner = project.ownerEmail === e;
-  const pro = project.assignedProEmail?.toLowerCase() === e;
+  const e = (userEmail || '').toLowerCase();
+  const owner = (project.ownerEmail || '').toLowerCase() === e;
+  const pro = (project.assignedProEmail || '').toLowerCase() === e;
   return project.status === 'assigned' && (owner || pro);
 }
+
+// ---------------------------------------------------------------------------
+// Compat exports (certaines pages anciennes importaient ces noms)
+// ---------------------------------------------------------------------------
+
+export const getProject = getProjectById;
+
+export function listOffers(projectId: string): ProjectOffer[] {
+  return getProjectById(projectId)?.offers ?? [];
+}
+
+export function createOffer(input: {
+  projectId: string;
+  proUserId?: string; // ignoré en V1
+  proEmail: string;
+  priceEur: number;
+  durationDays: number;
+  message?: string;
+}) {
+  return addOffer({
+    projectId: input.projectId,
+    proEmail: input.proEmail,
+    priceEur: input.priceEur,
+    durationDays: input.durationDays,
+    message: input.message,
+  });
+}
+
+export function acceptOfferById(projectId: string, offerId: string, ownerEmail: string) {
+  return acceptOffer({ projectId, offerId, ownerEmail });
+}
+

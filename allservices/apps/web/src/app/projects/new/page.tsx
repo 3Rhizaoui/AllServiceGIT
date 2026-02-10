@@ -1,176 +1,165 @@
 'use client';
 
-import { me } from '@/lib/api';
-import { getToken } from '@/lib/auth';
+import { aiDescribe } from '@/lib/aiDescribe';
 import { createProject, type ProjectCategory } from '@/lib/projects-store';
+import { useSession } from '@/lib/useSession';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 const CATS: { value: ProjectCategory; label: string }[] = [
-  { value: 'renovation', label: 'Rénovation' },
   { value: 'plomberie', label: 'Plomberie' },
   { value: 'electricite', label: 'Électricité' },
   { value: 'peinture', label: 'Peinture' },
+  { value: 'carrelage', label: 'Carrelage' },
   { value: 'menuiserie', label: 'Menuiserie' },
-  { value: 'jardin', label: 'Jardin' },
+  { value: 'maconnerie', label: 'Maçonnerie' },
   { value: 'autre', label: 'Autre' },
 ];
 
 export default function NewProjectPage() {
   const router = useRouter();
-  const [token] = useState(() => getToken());
-  const [ownerEmail, setOwnerEmail] = useState('');
-  const [err, setErr] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
+  const { token, user, loading } = useSession();
 
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState<ProjectCategory>('renovation');
-  const [city, setCity] = useState('');
+  const [category, setCategory] = useState<ProjectCategory>('autre');
   const [description, setDescription] = useState('');
 
-  useEffect(() => {
-    if (!token) return;
-    me(token)
-      .then((u) => setOwnerEmail((u.email || '').toLowerCase()))
-      .catch((e) => setErr(String(e?.message || e || 'Erreur')));
-  }, [token]);
+  const [scope, setScope] = useState<string[]>([]);
+  const [constraints, setConstraints] = useState<string[]>([]);
+  const [questions, setQuestions] = useState<string[]>([]);
+  const [materials, setMaterials] = useState<string[]>([]);
 
-  const styles = useMemo(
-    () => ({
-      page: { padding: 24, background: '#f8fafc', minHeight: 'calc(100vh - 64px)' },
-      card: {
-        maxWidth: 720,
-        margin: '0 auto',
-        background: '#fff',
-        border: '1px solid #e5e7eb',
-        borderRadius: 16,
-        padding: 18,
-      },
-      h1: { margin: 0, fontSize: 22, fontWeight: 900, color: '#0b1f3a' },
-      label: { marginTop: 12, fontWeight: 900, fontSize: 13, color: '#334155' },
-      input: {
-        width: '100%',
-        padding: 12,
-        borderRadius: 12,
-        border: '1px solid #e5e7eb',
-        marginTop: 8,
-        fontSize: 14,
-      },
-      blueBtn: {
-        width: '100%',
-        marginTop: 16,
-        padding: 12,
-        borderRadius: 12,
-        border: '1px solid #2563eb',
-        background: '#2563eb',
-        color: '#fff',
-        fontWeight: 900,
-        cursor: 'pointer',
-        fontSize: 14,
-      },
-      ghostBtn: {
-        width: '100%',
-        marginTop: 10,
-        padding: 12,
-        borderRadius: 12,
-        border: '1px solid #e5e7eb',
-        background: '#fff',
-        color: '#111',
-        fontWeight: 900,
-        cursor: 'pointer',
-        fontSize: 14,
-      },
-    }),
-    [],
-  );
+  const [info, setInfo] = useState<string | null>(null);
 
-  if (!token) {
-    return (
-      <div style={styles.page}>
-        <div style={styles.card}>
-          <h1 style={styles.h1}>Nouveau projet</h1>
-          <p style={{ color: '#334155' }}>Tu dois être connecté pour créer un projet.</p>
-        </div>
-      </div>
-    );
+  const canUse = useMemo(() => !!token && !!user, [token, user]);
+
+  if (!loading && !canUse) {
+    // on ne touche pas /account => on redirige simplement
+    router.replace('/account');
+    return null;
   }
 
-  if (err) {
-    return (
-      <div style={styles.page}>
-        <div style={styles.card}>
-          <h1 style={styles.h1}>Nouveau projet</h1>
-          <div style={{ marginTop: 10, padding: 12, border: '1px solid #fecaca', background: '#fff1f2', borderRadius: 12 }}>
-            <b>Erreur:</b> {err}
-          </div>
-        </div>
-      </div>
-    );
+  function applyAi() {
+    const s = aiDescribe(description || title);
+    setTitle((v) => (v.trim() ? v : s.title));
+    setCategory(s.category);
+    setDescription(s.description);
+    setScope(s.scope);
+    setConstraints(s.constraints);
+    setQuestions(s.questions);
+    setMaterials(s.suggestedMaterials);
+    setInfo('Suggestions IA appliquées (V1).');
   }
 
-  async function onCreate() {
-    setErr(null);
-    setInfo(null);
-    try {
-      const p = createProject({
-        ownerEmail,
-        title,
-        category,
-        city,
-        description,
-      });
-      setInfo('Projet créé ✅');
-      router.push(`/projects/${p.id}`);
-    } catch (e: any) {
-      setErr(String(e?.message || e || 'Erreur'));
+  function submit() {
+    if (!user) return;
+    if (!title.trim() || !description.trim()) {
+      setInfo('Titre et description requis.');
+      return;
     }
+    const p = createProject({
+      ownerUserId: user.id,
+      ownerEmail: user.email,
+      title: title.trim(),
+      category,
+      description: description.trim(),
+      scope,
+      constraints,
+      questions,
+      suggestedMaterials: materials,
+      city: '',
+    });
+    router.push(`/projects/${p.id}`);
   }
+
+  const styles = {
+    page: { padding: 24, background: '#f8fafc', minHeight: '100vh' },
+    card: { maxWidth: 960, margin: '0 auto', background: '#fff', border: '1px solid #e5e7eb', borderRadius: 16, padding: 18 },
+    h1: { fontSize: 22, fontWeight: 900, margin: '0 0 12px' },
+    label: { fontWeight: 800, fontSize: 13, color: '#334155' },
+    input: { width: '100%', padding: 14, borderRadius: 12, border: '1px solid #e5e7eb', marginTop: 8, fontSize: 14, outline: 'none' },
+    row: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
+    btnBlue: { padding: '12px 14px', borderRadius: 12, border: '1px solid #2563eb', background: '#2563eb', color: '#fff', fontWeight: 900, cursor: 'pointer' as const },
+    btnGhost: { padding: '12px 14px', borderRadius: 12, border: '1px solid #e5e7eb', background: '#fff', fontWeight: 900, cursor: 'pointer' as const },
+    info: { marginTop: 12, padding: 10, border: '1px solid #e5e7eb', borderRadius: 12, background: '#f8fafc' },
+    chips: { display: 'flex', flexWrap: 'wrap' as const, gap: 8, marginTop: 8 },
+    chip: { padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: 999, background: '#fff', fontWeight: 800, fontSize: 12, color: '#0b1f3a' },
+  };
 
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <h1 style={styles.h1}>Nouveau projet</h1>
-        <div style={{ marginTop: 8, color: '#64748b', fontSize: 13 }}>
-          Propriétaire: <b>{ownerEmail}</b>
+        <div style={styles.h1}>Créer un projet</div>
+
+        {info ? <div style={styles.info}><b>Info :</b> {info}</div> : null}
+
+        <div style={{ marginTop: 12 }}>
+          <div style={styles.label}>Titre</div>
+          <input value={title} onChange={(e) => setTitle(e.currentTarget.value)} style={styles.input} placeholder="ex: Rénover salle de bain" />
         </div>
 
-        {info ? (
-          <div style={{ marginTop: 12, padding: 12, border: '1px solid #bbf7d0', background: '#f0fdf4', borderRadius: 12 }}>
-            {info}
+        <div style={{ marginTop: 12, ...styles.row }}>
+          <div>
+            <div style={styles.label}>Catégorie</div>
+            <select value={category} onChange={(e) => setCategory(e.currentTarget.value as any)} style={{ ...styles.input, background: '#fff' }}>
+              {CATS.map((c) => (
+                <option key={c.value} value={c.value}>{c.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <div style={styles.label}>Ville (optionnel V1)</div>
+            <input disabled value="" style={{ ...styles.input, background: '#f8fafc' }} placeholder="à venir" />
+          </div>
+        </div>
+
+        <div style={{ marginTop: 12 }}>
+          <div style={styles.label}>Description</div>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.currentTarget.value)}
+            style={{ ...styles.input, minHeight: 130, resize: 'vertical' }}
+            placeholder="Décris ton besoin..."
+          />
+          <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+            <button type="button" onClick={applyAi} style={styles.btnGhost}>Aide IA (V1)</button>
+            <button type="button" onClick={submit} style={styles.btnBlue}>Publier l’appel d’offre</button>
+          </div>
+        </div>
+
+        {(scope.length || constraints.length || questions.length || materials.length) ? (
+          <div style={{ marginTop: 18 }}>
+            <div style={{ fontWeight: 900, marginBottom: 8 }}>Suggestions IA</div>
+
+            {scope.length ? (
+              <>
+                <div style={styles.label}>Périmètre</div>
+                <div style={styles.chips}>{scope.map((x, i) => <span key={i} style={styles.chip}>{x}</span>)}</div>
+              </>
+            ) : null}
+
+            {constraints.length ? (
+              <>
+                <div style={{ ...styles.label, marginTop: 12 }}>Contraintes</div>
+                <div style={styles.chips}>{constraints.map((x, i) => <span key={i} style={styles.chip}>{x}</span>)}</div>
+              </>
+            ) : null}
+
+            {questions.length ? (
+              <>
+                <div style={{ ...styles.label, marginTop: 12 }}>Questions à poser</div>
+                <div style={styles.chips}>{questions.map((x, i) => <span key={i} style={styles.chip}>{x}</span>)}</div>
+              </>
+            ) : null}
+
+            {materials.length ? (
+              <>
+                <div style={{ ...styles.label, marginTop: 12 }}>Matériaux suggérés</div>
+                <div style={styles.chips}>{materials.map((x, i) => <span key={i} style={styles.chip}>{x}</span>)}</div>
+              </>
+            ) : null}
           </div>
         ) : null}
-
-        {err ? (
-          <div style={{ marginTop: 12, padding: 12, border: '1px solid #fecaca', background: '#fff1f2', borderRadius: 12 }}>
-            <b>Erreur:</b> {err}
-          </div>
-        ) : null}
-
-        <div style={styles.label}>Titre</div>
-        <input value={title} onChange={(e) => setTitle(e.currentTarget.value)} style={styles.input} />
-
-        <div style={styles.label}>Catégorie</div>
-        <select value={category} onChange={(e) => setCategory(e.currentTarget.value as any)} style={styles.input}>
-          {CATS.map((c) => (
-            <option key={c.value} value={c.value}>
-              {c.label}
-            </option>
-          ))}
-        </select>
-
-        <div style={styles.label}>Ville</div>
-        <input value={city} onChange={(e) => setCity(e.currentTarget.value)} style={styles.input} />
-
-        <div style={styles.label}>Description</div>
-        <textarea value={description} onChange={(e) => setDescription(e.currentTarget.value)} style={{ ...styles.input, minHeight: 120 }} />
-
-        <button onClick={onCreate} style={styles.blueBtn}>
-          Publier l’appel d’offre
-        </button>
-
-        <button onClick={() => router.push('/projects')} style={styles.ghostBtn}>
-          Retour
-        </button>
       </div>
     </div>
   );

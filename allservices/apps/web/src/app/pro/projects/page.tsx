@@ -2,60 +2,50 @@
 
 import { me } from '@/lib/api';
 import { getToken } from '@/lib/auth';
+import {
+  labelCategory,
+  listAssignedProjectsForPro,
+  listOpenProjects,
+  type Project,
+  type ProjectCategory,
+} from '@/lib/projects-store';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
-type ProCard = {
-  id: string;
-  name: string;
-  city: string;
-  categories: string[];
-  rating: number;
-  jobs: number;
-};
-
-const SAMPLE_PROS: ProCard[] = [
-  {
-    id: 'pro_1',
-    name: 'Pro Plomberie IDF',
-    city: 'Paris',
-    categories: ['Plomberie', 'Rénovation'],
-    rating: 4.8,
-    jobs: 52,
-  },
-  {
-    id: 'pro_2',
-    name: 'Électricien Express',
-    city: 'Massy',
-    categories: ['Électricité'],
-    rating: 4.6,
-    jobs: 31,
-  },
-  {
-    id: 'pro_3',
-    name: 'Peinture & Finitions',
-    city: 'Créteil',
-    categories: ['Peinture', 'Menuiserie'],
-    rating: 4.7,
-    jobs: 44,
-  },
+const CATS: { value: '' | ProjectCategory; label: string }[] = [
+  { value: '', label: 'Toutes catégories' },
+  { value: 'renovation', label: 'Rénovation' },
+  { value: 'plomberie', label: 'Plomberie' },
+  { value: 'electricite', label: 'Électricité' },
+  { value: 'peinture', label: 'Peinture' },
+  { value: 'carrelage', label: 'Carrelage' },
+  { value: 'menuiserie', label: 'Menuiserie' },
+  { value: 'maconnerie', label: 'Maçonnerie' },
+  { value: 'climatisation', label: 'Climatisation' },
+  { value: 'jardin', label: 'Jardin' },
+  { value: 'autre', label: 'Autre' },
 ];
 
-export default function ProsPage() {
+export default function ProProjectsPage() {
   const [token] = useState(() => getToken());
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState<string>('');
   const [err, setErr] = useState<string | null>(null);
-
-  // filtres V1
-  const [q, setQ] = useState('');
-  const [city, setCity] = useState('');
+  const [cat, setCat] = useState<'' | ProjectCategory>('');
+  const [openItems, setOpenItems] = useState<Project[]>([]);
+  const [assignedItems, setAssignedItems] = useState<Project[]>([]);
 
   useEffect(() => {
     if (!token) return;
     me(token)
-      .then((u) => setEmail((u.email || '').toLowerCase()))
+      .then((u) => {
+        const e = (u.email || '').toLowerCase();
+        setEmail(e);
+
+        setOpenItems(listOpenProjects(cat ? { category: cat } : undefined));
+        setAssignedItems(listAssignedProjectsForPro(e));
+      })
       .catch((e) => setErr(String(e?.message || e || 'Erreur')));
-  }, [token]);
+  }, [token, cat]);
 
   const styles = useMemo(
     () => ({
@@ -68,11 +58,17 @@ export default function ProsPage() {
         borderRadius: 16,
         padding: 18,
       },
-      titleRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' as const },
+      titleRow: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 12,
+        flexWrap: 'wrap' as const,
+      },
       h1: { margin: 0, fontSize: 22, fontWeight: 900, color: '#0b1f3a' },
-      small: { color: '#64748b', fontSize: 13, marginTop: 8 },
-
-      grid: { marginTop: 14, display: 'grid', gap: 12 },
+      select: { padding: 10, borderRadius: 12, border: '1px solid #e5e7eb', fontWeight: 800 },
+      section: { marginTop: 18, fontWeight: 900, color: '#0b1f3a' },
+      list: { marginTop: 10, display: 'grid', gap: 12 },
       item: {
         border: '1px solid #e5e7eb',
         borderRadius: 14,
@@ -83,10 +79,6 @@ export default function ProsPage() {
         alignItems: 'flex-start',
         gap: 12,
       },
-      left: { minWidth: 0 },
-      name: { fontWeight: 900, color: '#0b1f3a', fontSize: 16 },
-      meta: { color: '#64748b', fontWeight: 800, fontSize: 12, marginTop: 6 },
-      badgeRow: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' as const, marginTop: 10 },
       badge: {
         display: 'inline-block',
         padding: '4px 10px',
@@ -97,26 +89,9 @@ export default function ProsPage() {
         color: '#334155',
         fontSize: 12,
       },
-      inputRow: { marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 },
-      input: {
-        width: '100%',
-        padding: 12,
-        borderRadius: 12,
-        border: '1px solid #e5e7eb',
-        fontSize: 14,
-        outline: 'none',
-      },
       link: { color: '#2563eb', fontWeight: 900, textDecoration: 'none' as const },
-      btnGhost: {
-        padding: '10px 12px',
-        borderRadius: 12,
-        border: '1px solid #e5e7eb',
-        background: '#fff',
-        fontWeight: 900,
-        cursor: 'pointer' as const,
-        textDecoration: 'none' as const,
-        color: '#111',
-      },
+      small: { color: '#64748b', fontSize: 13, marginTop: 6 },
+      empty: { padding: 14, border: '1px dashed #cbd5e1', borderRadius: 14, background: '#fff' },
     }),
     [],
   );
@@ -125,11 +100,13 @@ export default function ProsPage() {
     return (
       <div style={styles.page}>
         <div style={styles.card}>
-          <h1 style={styles.h1}>Chercher un pro</h1>
+          <h1 style={styles.h1}>Appels d’offres</h1>
           <p style={{ color: '#334155' }}>
-            Tu dois être connecté.
+            Tu dois être connecté pour voir les appels d’offres.
             {' '}
-            <Link href="/account" style={styles.link}>Aller au profil</Link>
+            <Link href="/account" style={styles.link}>
+              Aller au profil
+            </Link>
           </p>
         </div>
       </div>
@@ -140,8 +117,16 @@ export default function ProsPage() {
     return (
       <div style={styles.page}>
         <div style={styles.card}>
-          <h1 style={styles.h1}>Chercher un pro</h1>
-          <div style={{ marginTop: 10, padding: 12, border: '1px solid #fecaca', background: '#fff1f2', borderRadius: 12 }}>
+          <h1 style={styles.h1}>Appels d’offres</h1>
+          <div
+            style={{
+              marginTop: 10,
+              padding: 12,
+              border: '1px solid #fecaca',
+              background: '#fff1f2',
+              borderRadius: 12,
+            }}
+          >
             <b>Erreur:</b> {err}
           </div>
         </div>
@@ -149,70 +134,61 @@ export default function ProsPage() {
     );
   }
 
-  const filtered = SAMPLE_PROS.filter((p) => {
-    const qq = q.trim().toLowerCase();
-    const cc = city.trim().toLowerCase();
-    const matchQ =
-      !qq ||
-      p.name.toLowerCase().includes(qq) ||
-      p.categories.some((c) => c.toLowerCase().includes(qq));
-    const matchCity = !cc || p.city.toLowerCase().includes(cc);
-    return matchQ && matchCity;
-  });
+  function ProjectRow(p: Project, rightLinkHref: string, rightLabel: string) {
+    return (
+      <div key={p.id} style={styles.item}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={styles.badge}>{labelCategory(p.category)}</span>
+            <span style={styles.badge}>{p.status}</span>
+          </div>
+          <div style={{ marginTop: 8, fontWeight: 900, color: '#0b1f3a' }}>{p.title}</div>
+          <div style={styles.small}>
+            {p.city ? `Ville: ${p.city} · ` : null}
+            Offres: {p.offers?.length ?? 0} · Publié: {new Date(p.createdAt).toLocaleString()}
+          </div>
+        </div>
+
+        <Link href={rightLinkHref} style={styles.link}>
+          {rightLabel} →
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.page}>
       <div style={styles.card}>
         <div style={styles.titleRow}>
-          <h1 style={styles.h1}>Chercher un pro</h1>
-          <Link href="/projects/new" style={styles.btnGhost}>Créer un projet</Link>
+          <h1 style={styles.h1}>Espace Pro — Appels d’offres</h1>
+          <select value={cat} onChange={(e) => setCat(e.currentTarget.value as any)} style={styles.select}>
+            {CATS.map((c) => (
+              <option key={c.label} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <div style={styles.small}>
+        <div style={{ marginTop: 8, color: '#64748b', fontSize: 13 }}>
           Connecté en tant que <b>{email}</b>
         </div>
 
-        <div style={styles.inputRow}>
-          <input
-            value={q}
-            onChange={(e) => setQ(e.currentTarget.value)}
-            placeholder="Métier (plomberie, électricité...)"
-            style={styles.input}
-          />
-          <input
-            value={city}
-            onChange={(e) => setCity(e.currentTarget.value)}
-            placeholder="Ville"
-            style={styles.input}
-          />
+        <div style={styles.section}>Mes projets assignés (avec chat)</div>
+        <div style={styles.list}>
+          {assignedItems.length === 0 ? (
+            <div style={styles.empty}>Aucun projet assigné pour l’instant.</div>
+          ) : (
+            assignedItems.map((p) => ProjectRow(p, `/pro/projects/${p.id}`, 'Ouvrir'))
+          )}
         </div>
 
-        <div style={styles.grid}>
-          {filtered.length === 0 ? (
-            <div style={{ padding: 14, border: '1px dashed #cbd5e1', borderRadius: 14, background: '#fff', marginTop: 12 }}>
-              Aucun professionnel trouvé (V1).
-            </div>
+        <div style={styles.section}>Appels d’offres ouverts</div>
+        <div style={styles.list}>
+          {openItems.length === 0 ? (
+            <div style={styles.empty}>Aucun appel d’offre ouvert pour l’instant.</div>
           ) : (
-            filtered.map((p) => (
-              <div key={p.id} style={styles.item}>
-                <div style={styles.left}>
-                  <div style={styles.name}>{p.name}</div>
-                  <div style={styles.meta}>
-                    {p.city} • {p.rating.toFixed(1)} ★ • {p.jobs} prestations
-                  </div>
-                  <div style={styles.badgeRow}>
-                    {p.categories.map((c) => (
-                      <span key={c} style={styles.badge}>{c}</span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* V1: page profil pro non implémentée => lien placeholder */}
-                <a href="#" style={styles.link} onClick={(e) => e.preventDefault()}>
-                  Voir →
-                </a>
-              </div>
-            ))
+            openItems.map((p) => ProjectRow(p, `/pro/projects/${p.id}`, 'Ouvrir'))
           )}
         </div>
       </div>

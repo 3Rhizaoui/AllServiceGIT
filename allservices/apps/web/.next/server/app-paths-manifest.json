@@ -1,6 +1,8 @@
 {
-  "/projects/new/page": "app/projects/new/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
   "/account/page": "app/account/page.js",
-  "/page": "app/page.js",
-  "/projects/page": "app/projects/page.js"
+  "/projects/page": "app/projects/page.js",
+  "/projects/[id]/chat/page": "app/projects/[id]/chat/page.js",
+  "/projects/[id]/page": "app/projects/[id]/page.js",
+  "/pro/projects/page": "app/pro/projects/page.js"
 }
